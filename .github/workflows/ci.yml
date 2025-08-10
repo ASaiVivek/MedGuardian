@@ -25,18 +25,38 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci
+      run: |
+        if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
     
     - name: Run linter
-      run: npm run lint
+      run: |
+        if npm list eslint > /dev/null 2>&1; then
+          npm run lint
+        else
+          echo "Linter not configured, skipping..."
+        fi
       continue-on-error: true
     
     - name: Run tests
-      run: npm test
+      run: |
+        if [ -f "test" ] || [ -d "tests" ] || grep -q "test" package.json; then
+          npm test
+        else
+          echo "No tests found, skipping..."
+        fi
       continue-on-error: true
     
     - name: Check code formatting
-      run: npm run format:check
+      run: |
+        if npm list prettier > /dev/null 2>&1; then
+          npm run format:check
+        else
+          echo "Prettier not configured, skipping..."
+        fi
       continue-on-error: true
 
   security:

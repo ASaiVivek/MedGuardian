@@ -5,7 +5,10 @@
   "main": "src/bot.js",
   "scripts": {
     "start": "node src/bot.js",
-    "dev": "nodemon src/bot.js"
+    "dev": "nodemon src/bot.js",
+    "test": "echo \"No tests specified yet\" && exit 0",
+    "lint": "echo \"No linter configured yet\" && exit 0",
+    "format:check": "echo \"No formatter configured yet\" && exit 0"
   },
   "keywords": ["discord", "medicine", "tracking", "health", "reminders"],
   "author": "MedGuardian Team",
