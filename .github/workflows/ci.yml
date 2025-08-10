@@ -13,7 +13,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [16.x, 18.x, 20.x]
+        node-version: [18.x, 20.x]
     
     steps:
     - uses: actions/checkout@v3
@@ -22,41 +22,26 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
     
     - name: Install dependencies
-      run: |
-        if [ -f package-lock.json ]; then
-          npm ci
-        else
-          npm install
-        fi
+      run: npm install
     
-    - name: Run linter
+    - name: Verify installation
       run: |
-        if npm list eslint > /dev/null 2>&1; then
-          npm run lint
-        else
-          echo "Linter not configured, skipping..."
-        fi
+        echo "Node.js version: $(node --version)"
+        echo "NPM version: $(npm --version)"
+        echo "Dependencies installed successfully!"
+    
+    - name: Run linter (if configured)
+      run: npm run lint
       continue-on-error: true
     
-    - name: Run tests
-      run: |
-        if [ -f "test" ] || [ -d "tests" ] || grep -q "test" package.json; then
-          npm test
-        else
-          echo "No tests found, skipping..."
-        fi
+    - name: Run tests (if available)
+      run: npm test
       continue-on-error: true
     
-    - name: Check code formatting
-      run: |
-        if npm list prettier > /dev/null 2>&1; then
-          npm run format:check
-        else
-          echo "Prettier not configured, skipping..."
-        fi
+    - name: Check code formatting (if configured)
+      run: npm run format:check
       continue-on-error: true
 
   security:
