@@ -1,0 +1,21 @@
+{
+  "name": "medguardian-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for medicine tracking with configurable meal times",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js"
+  },
+  "keywords": ["discord", "medicine", "tracking", "health", "reminders"],
+  "author": "MedGuardian Team",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "node-cron": "^3.0.3",
+    "moment-timezone": "^0.5.43"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
