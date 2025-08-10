@@ -302,20 +302,27 @@ class ScheduleManager {
      */
     async handleMealTimesModal(interaction) {
         try {
+            console.log('🔧 Processing meal times modal submission...');
+            
+            // Acknowledge the interaction immediately to prevent timeout
+            await interaction.deferReply({ ephemeral: true });
+            
             const breakfastTimes = interaction.fields.getTextInputValue('breakfast_times');
             const lunchTimes = interaction.fields.getTextInputValue('lunch_times');
             const dinnerTimes = interaction.fields.getTextInputValue('dinner_times');
             const timezone = interaction.fields.getTextInputValue('timezone');
             const advanceMinutes = parseInt(interaction.fields.getTextInputValue('advance_minutes'));
 
+            console.log('📝 Form values:', { breakfastTimes, lunchTimes, dinnerTimes, timezone, advanceMinutes });
+
             // Parse time ranges
             const parseTimeRange = (timeRange) => {
                 const [start, end] = timeRange.split('-').map(t => t.trim());
-                if (!start || !end) throw new Error('Invalid time range format');
+                if (!start || !end) throw new Error('Invalid time range format. Use format: HH:MM - HH:MM');
                 
                 // Validate time format
                 if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
-                    throw new Error('Time must be in HH:MM format');
+                    throw new Error('Time must be in HH:MM format (e.g., 07:00 - 10:00)');
                 }
                 
                 return { start, end };
@@ -327,21 +334,23 @@ class ScheduleManager {
                 dinner: parseTimeRange(dinnerTimes)
             };
 
+            console.log('⏰ Parsed meal times:', mealTimes);
+
             // Validate timezone
             if (!moment.tz.zone(timezone)) {
-                return await interaction.reply({
-                    content: '❌ Invalid timezone. Please use a valid timezone like Asia/Kolkata, America/New_York, etc.',
-                    ephemeral: true
+                return await interaction.editReply({
+                    content: '❌ Invalid timezone. Please use a valid timezone like Asia/Kolkata, America/New_York, etc.'
                 });
             }
 
             // Validate advance minutes
             if (isNaN(advanceMinutes) || advanceMinutes < 0 || advanceMinutes > 60) {
-                return await interaction.reply({
-                    content: '❌ Reminder advance time must be a number between 0 and 60 minutes.',
-                    ephemeral: true
+                return await interaction.editReply({
+                    content: '❌ Reminder advance time must be a number between 0 and 60 minutes.'
                 });
             }
+
+            console.log('✅ Validation passed, updating settings...');
 
             const updates = {
                 meal_times: mealTimes,
@@ -352,8 +361,12 @@ class ScheduleManager {
             const success = await this.updateSettings(interaction.guild, updates, interaction.user.id);
 
             if (success) {
-                // Regenerate schedules with new settings
-                await this.generateSchedules(interaction.guild);
+                console.log('✅ Settings updated, regenerating schedules...');
+                
+                // Regenerate schedules with new settings (but don't wait for it to prevent timeout)
+                this.generateSchedules(interaction.guild).catch(error => {
+                    console.error('Error regenerating schedules:', error);
+                });
 
                 const embed = new EmbedBuilder()
                     .setTitle('✅ Meal Times Updated Successfully')
@@ -365,22 +378,33 @@ class ScheduleManager {
                         { name: '🌍 Timezone', value: timezone, inline: true },
                         { name: '⏰ Reminder Advance', value: `${advanceMinutes} minutes`, inline: true }
                     )
-                    .setFooter({ text: 'Schedules have been regenerated with new settings' })
+                    .setFooter({ text: 'Schedules are being regenerated in the background...' })
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [embed], ephemeral: true });
+                await interaction.editReply({ embeds: [embed] });
+                console.log('✅ Modal submission completed successfully');
             } else {
-                await interaction.reply({
-                    content: '❌ Failed to update meal times. Please try again.',
-                    ephemeral: true
+                await interaction.editReply({
+                    content: '❌ Failed to update meal times. Please try again.'
                 });
             }
         } catch (error) {
-            console.error('Error handling meal times modal:', error);
-            await interaction.reply({
-                content: `❌ Error: ${error.message}`,
-                ephemeral: true
-            });
+            console.error('❌ Error handling meal times modal:', error);
+            
+            try {
+                if (interaction.deferred) {
+                    await interaction.editReply({
+                        content: `❌ Error: ${error.message}`
+                    });
+                } else {
+                    await interaction.reply({
+                        content: `❌ Error: ${error.message}`,
+                        ephemeral: true
+                    });
+                }
+            } catch (replyError) {
+                console.error('❌ Error sending error message:', replyError);
+            }
         }
     }
 
