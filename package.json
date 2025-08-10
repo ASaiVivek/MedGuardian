@@ -10,13 +10,20 @@
     "lint": "echo \"No linter configured yet\" && exit 0",
     "format:check": "echo \"No formatter configured yet\" && exit 0"
   },
-  "keywords": ["discord", "medicine", "tracking", "health", "reminders"],
+  "keywords": [
+    "discord",
+    "medicine",
+    "tracking",
+    "health",
+    "reminders"
+  ],
   "author": "MedGuardian Team",
   "license": "MIT",
   "dependencies": {
     "discord.js": "^14.14.1",
     "node-cron": "^3.0.3",
-    "moment-timezone": "^0.5.43"
+    "moment-timezone": "^0.5.43",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
