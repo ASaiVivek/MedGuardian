@@ -8,46 +8,40 @@ module.exports = {
     async execute(interaction) {
         try {
             const embed = new EmbedBuilder()
-                .setTitle('🏥 MedGuardian Help & Documentation')
+                .setTitle('🏥 MedGuardian Help')
                 .setColor(0x3498db)
-                .setDescription('**MedGuardian** is a Discord bot for tracking medicine schedules with configurable meal times.')
+                .setDescription('Track medicine schedules in Discord with meal-time reminders and daily compliance.')
                 .addFields(
                     {
                         name: '🚀 Getting Started',
-                        value: '1. **Setup:** `/setup-medguardian` (Admin only)\n2. **Configure meal times:** `/schedule-settings`\n3. **Add medicines:** `/medicine-manager`\n4. **View your medicines:** `/my-medicines`',
+                        value: '1. `/setup-medguardian` — set up channels and roles\n2. `/schedule-settings` — configure meal times\n3. `/add-medicine` — add medicines with dropdowns\n4. `/my-medicines` — see your schedule and today\'s status',
                         inline: false
                     },
                     {
-                        name: '👨‍⚕️ For Trackers (Admins)',
-                        value: '• `/setup-medguardian` - Initialize bot for server\n• `/medicine-manager` - Add/edit/delete medicines\n• `/schedule-settings` - Configure meal times & schedules\n• Check #medicine-logs for missed dose alerts',
+                        name: '👨‍⚕️ Tracker Commands (Admin)',
+                        value: '• `/add-medicine` — guided add with user picker\n• `/edit-medicine` — edit with autocomplete\n• `/medicine-manager` — button-based management\n• `/schedule-settings` — meal times and schedules\n• `/update-intake` — manually correct intake\n• `/delete-medicine` — remove a medicine',
                         inline: false
                     },
                     {
-                        name: '🎯 For Targets (Medicine Takers)',
-                        value: '• `/my-medicines` - View your assigned medicines\n• Receive reminders in #medicine-reminders\n• Click buttons: ✅ Taken, ❌ Missed, ⏰ Snooze\n• Trackers get notified of missed doses',
+                        name: '🎯 Target Commands',
+                        value: '• `/my-medicines` — view medicines and today\'s status (✅ taken, ⏳ pending, ❌ missed)\n• Respond to reminders in #medicine-reminders with buttons',
                         inline: false
                     },
                     {
-                        name: '⏰ Medicine Frequency Options',
-                        value: '• `before_breakfast` - Before breakfast meal\n• `after_breakfast` - After breakfast meal\n• `before_lunch` - Before lunch meal\n• `after_lunch` - After lunch meal\n• `before_dinner` - Before dinner meal\n• `after_dinner` - After dinner meal',
+                        name: '⏰ Schedule Options',
+                        value: '**Meal-based:** before/after breakfast, lunch, dinner\n**Custom time:** use `08:00` or `custom_22:00` for fixed times (e.g., bedtime vitamins)',
                         inline: false
                     },
                     {
-                        name: '📊 Features',
-                        value: '✅ Configurable meal times per server\n✅ Multiple medicines per target\n✅ Inventory tracking with low stock alerts\n✅ Missed dose notifications to trackers\n✅ Snooze reminders (15 minutes)\n✅ Activity logging and daily summaries',
-                        inline: false
-                    },
-                    {
-                        name: '🔧 Data Storage',
-                        value: 'All data is stored as JSON files in your server\'s #medicine-data channel. Your data stays in your Discord server - no external databases used.',
+                        name: '📊 Automatic Features',
+                        value: '✅ Reminders at scheduled times\n✅ One reminder per dose per day\n✅ Low inventory alerts\n✅ Missed dose alerts to trackers\n✅ Daily summary at 9 PM server timezone\n✅ Snooze for 15 minutes',
                         inline: false
                     }
                 )
-                .setFooter({ text: 'MedGuardian - Bring Your Own Sheet Medicine Tracking' })
+                .setFooter({ text: 'All data stays in your Discord server — no external database' })
                 .setTimestamp();
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
-
         } catch (error) {
             console.error('Error in help command:', error);
             await interaction.reply({
@@ -55,5 +49,5 @@ module.exports = {
                 ephemeral: true
             });
         }
-    },
+    }
 };
