@@ -80,6 +80,26 @@ module.exports = {
                 });
             }
 
+            // Create Tracker and Target roles
+            let trackerRole, targetRole;
+            try {
+                trackerRole = guild.roles.cache.find(r => r.name === 'Tracker')
+                    || await guild.roles.create({
+                        name: 'Tracker',
+                        color: 0x3498db,
+                        reason: 'MedGuardian caregiver role'
+                    });
+
+                targetRole = guild.roles.cache.find(r => r.name === 'Target')
+                    || await guild.roles.create({
+                        name: 'Target',
+                        color: 0x2ecc71,
+                        reason: 'MedGuardian medicine taker role'
+                    });
+            } catch (roleError) {
+                console.error('Error creating roles:', roleError);
+            }
+
             // Initialize data files
             const initSuccess = await fileManager.initializeGuild(guild);
             if (!initSuccess) {
@@ -100,13 +120,20 @@ module.exports = {
                         inline: false
                     },
                     {
-                        name: '🚀 Next Steps',
-                        value: '1. Use `/medicine-manager` to add medicines\n2. Use `/schedule-settings` to configure meal times\n3. Add targets and start tracking!',
+                        name: '👥 Roles Created',
+                        value: trackerRole && targetRole
+                            ? `✅ ${trackerRole} — caregivers who manage medicines\n✅ ${targetRole} — people who take medicines`
+                            : '⚠️ Could not create roles — assign Administrator to trackers manually',
                         inline: false
                     },
                     {
-                        name: '📚 Available Commands',
-                        value: '• `/medicine-manager` - Manage medicines\n• `/schedule-settings` - Configure meal times\n• `/my-medicines` - View your medicines\n• `/help` - Get help and documentation',
+                        name: '🚀 Next Steps',
+                        value: '1. Assign **Target** role to medicine takers\n2. `/schedule-settings` — set meal times\n3. `/add-medicine` — add medicines\n4. Check `/my-medicines` to verify',
+                        inline: false
+                    },
+                    {
+                        name: '📚 Commands',
+                        value: '• `/add-medicine` — add with dropdowns\n• `/medicine-manager` — full management UI\n• `/schedule-settings` — meal times\n• `/my-medicines` — today\'s status\n• `/help` — documentation',
                         inline: false
                     }
                 )

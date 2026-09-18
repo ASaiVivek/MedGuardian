@@ -36,7 +36,7 @@ module.exports = {
                         { name: '👤 Target', value: `<@${medicine.target_id}>`, inline: true },
                         { name: '🆔 Medicine ID', value: `\`${medicineId}\``, inline: true }
                     )
-                    .setFooter({ text: 'Medicine has been permanently removed from tracking' })
+                    .setFooter({ text: 'Schedules were updated automatically' })
                     .setTimestamp();
 
                 await interaction.reply({ embeds: [embed], ephemeral: true });

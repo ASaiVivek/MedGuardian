@@ -1,48 +1,32 @@
-const { Client, GatewayIntentBits, Collection, Events, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Events } = require('discord.js');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const cron = require('node-cron');
-const moment = require('moment-timezone');
 require('dotenv').config();
 
 const FileManager = require('./utils/fileManager');
 const MedicineManager = require('./managers/medicineManager');
 const ScheduleManager = require('./managers/scheduleManager');
 const NotificationManager = require('./managers/notificationManager');
+const { parseReminderId, parseVerifyId } = require('./utils/interactionIds');
 
-/**
- * MedGuardianBot - Main Discord bot class that orchestrates all functionality
- * 
- * This class serves as the central hub for:
- * - Discord client management and event handling
- * - Command registration and execution
- * - Manager class coordination (medicine, schedule, notifications)
- * - Automated reminder scheduling
- */
 class MedGuardianBot {
-    /**
-     * Initialize the MedGuardian bot with all required components
-     * Sets up Discord client, managers, event handlers, and command loading
-     */
     constructor() {
-        // Initialize Discord client with required intents
         this.client = new Client({
             intents: [
-                GatewayIntentBits.Guilds,           // Access to guild information
-                GatewayIntentBits.GuildMessages,    // Read/send messages
-                GatewayIntentBits.MessageContent,   // Access message content
-                GatewayIntentBits.GuildMembers      // Access member information
+                GatewayIntentBits.Guilds,
+                GatewayIntentBits.GuildMessages,
+                GatewayIntentBits.MessageContent,
+                GatewayIntentBits.GuildMembers
             ]
         });
 
-        // Initialize core components
-        this.commands = new Collection();                                           // Store slash commands
-        this.fileManager = new FileManager();                                      // Handle Discord file storage
-        this.medicineManager = new MedicineManager(this.fileManager);              // Medicine CRUD operations
-        this.scheduleManager = new ScheduleManager(this.fileManager);              // Schedule management
-        this.notificationManager = new NotificationManager(this.client, this.fileManager); // Reminders & alerts
+        this.commands = new Collection();
+        this.fileManager = new FileManager();
+        this.scheduleManager = new ScheduleManager(this.fileManager);
+        this.medicineManager = new MedicineManager(this.fileManager, this.scheduleManager);
+        this.notificationManager = new NotificationManager(this.client, this.fileManager);
 
-        // Setup bot functionality
         this.setupEventHandlers();
         this.loadCommands();
     }
@@ -54,18 +38,42 @@ class MedGuardianBot {
         });
 
         this.client.on(Events.InteractionCreate, async (interaction) => {
-            if (interaction.isChatInputCommand()) {
-                await this.handleSlashCommand(interaction);
-            } else if (interaction.isButton()) {
-                await this.handleButtonInteraction(interaction);
-            } else if (interaction.isModalSubmit()) {
-                await this.handleModalSubmit(interaction);
+            try {
+                if (interaction.isAutocomplete()) {
+                    await this.handleAutocomplete(interaction);
+                } else if (interaction.isChatInputCommand()) {
+                    await this.handleSlashCommand(interaction);
+                } else if (interaction.isButton()) {
+                    await this.handleButtonInteraction(interaction);
+                } else if (interaction.isStringSelectMenu()) {
+                    await this.handleSelectMenuInteraction(interaction);
+                } else if (interaction.isModalSubmit()) {
+                    await this.handleModalSubmit(interaction);
+                }
+            } catch (error) {
+                console.error('Unhandled interaction error:', error);
             }
         });
 
         this.client.on(Events.GuildCreate, async (guild) => {
             console.log(`📥 Added to new guild: ${guild.name} (${guild.id})`);
         });
+    }
+
+    async handleAutocomplete(interaction) {
+        const command = this.commands.get(interaction.commandName);
+        if (!command?.autocomplete) return;
+
+        try {
+            await command.autocomplete(interaction, {
+                fileManager: this.fileManager,
+                medicineManager: this.medicineManager,
+                scheduleManager: this.scheduleManager,
+                notificationManager: this.notificationManager
+            });
+        } catch (error) {
+            console.error('Error in autocomplete:', error);
+        }
     }
 
     async handleSlashCommand(interaction) {
@@ -82,7 +90,7 @@ class MedGuardianBot {
         } catch (error) {
             console.error('Error executing command:', error);
             const reply = { content: '❌ There was an error executing this command!', ephemeral: true };
-            
+
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp(reply);
             } else {
@@ -92,27 +100,85 @@ class MedGuardianBot {
     }
 
     async handleButtonInteraction(interaction) {
-        // Handle medicine reminder buttons (taken, missed, snooze)
-        const customIdParts = interaction.customId.split('_');
-        const action = customIdParts[0];
-        
-        if (['taken', 'missed', 'snooze'].includes(action)) {
-            const [, medicineId, targetId, reminderKey] = customIdParts;
-            await this.notificationManager.handleMedicineResponse(interaction, action, medicineId, targetId, reminderKey);
+        const customId = interaction.customId;
+
+        if (customId.startsWith('mg|mgr|')) {
+            return this.medicineManager.handleManagementButton(interaction);
         }
-        // Handle tracker verification buttons (verify_taken, verify_missed, verify_late)
-        else if (action === 'verify') {
-            const [, verifyAction, medicineId, targetId, timestamp] = customIdParts;
-            await this.notificationManager.handleTrackerVerification(interaction, verifyAction, medicineId, targetId, timestamp);
+
+        if (['configure_meal_times', 'regenerate_schedules', 'view_schedules'].includes(customId)) {
+            return this.handleScheduleSettingsButton(interaction);
+        }
+
+        const reminder = parseReminderId(customId);
+        if (reminder) {
+            return this.notificationManager.handleMedicineResponse(
+                interaction,
+                reminder.action,
+                reminder.medicineId,
+                reminder.targetId,
+                reminder.scheduleId,
+                reminder.dateKey
+            );
+        }
+
+        const verify = parseVerifyId(customId);
+        if (verify) {
+            return this.notificationManager.handleTrackerVerification(
+                interaction,
+                verify.action,
+                verify.medicineId,
+                verify.targetId,
+                verify.scheduleId,
+                verify.dateKey
+            );
+        }
+    }
+
+    async handleSelectMenuInteraction(interaction) {
+        if (interaction.customId.startsWith('mg|select|')) {
+            return this.medicineManager.handleMedicineSelect(interaction);
+        }
+    }
+
+    async handleScheduleSettingsButton(interaction) {
+        if (!interaction.memberPermissions.has('Administrator')) {
+            return interaction.reply({
+                content: '❌ Only administrators can manage schedules.',
+                ephemeral: true
+            });
+        }
+
+        switch (interaction.customId) {
+            case 'configure_meal_times': {
+                const settings = await this.scheduleManager.getSettings(interaction.guild);
+                const modal = this.scheduleManager.createMealTimesModal(settings);
+                return interaction.showModal(modal);
+            }
+
+            case 'regenerate_schedules': {
+                await interaction.deferReply({ ephemeral: true });
+                const success = await this.scheduleManager.generateSchedules(interaction.guild);
+                return interaction.editReply({
+                    content: success
+                        ? '✅ **Schedules regenerated** based on current medicines and meal times.'
+                        : '❌ Failed to regenerate schedules. Please try again.'
+                });
+            }
+
+            case 'view_schedules': {
+                const schedulesEmbed = await this.scheduleManager.createSchedulesListEmbed(interaction.guild);
+                return interaction.reply({ embeds: [schedulesEmbed], ephemeral: true });
+            }
         }
     }
 
     async handleModalSubmit(interaction) {
-        // Handle modal form submissions
         if (interaction.customId.startsWith('medicine_')) {
-            await this.medicineManager.handleModalSubmit(interaction);
-        } else if (interaction.customId.startsWith('schedule_')) {
-            await this.scheduleManager.handleModalSubmit(interaction);
+            return this.medicineManager.handleModalSubmit(interaction);
+        }
+        if (interaction.customId.startsWith('schedule_')) {
+            return this.scheduleManager.handleModalSubmit(interaction);
         }
     }
 
@@ -120,7 +186,7 @@ class MedGuardianBot {
         const fs = require('fs');
         const path = require('path');
         const commandsPath = path.join(__dirname, 'commands');
-        
+
         if (!fs.existsSync(commandsPath)) {
             fs.mkdirSync(commandsPath, { recursive: true });
         }
@@ -135,16 +201,32 @@ class MedGuardianBot {
     }
 
     startScheduler() {
-        // Check for medicine reminders every minute
         cron.schedule('* * * * *', async () => {
             try {
                 await this.notificationManager.checkAndSendReminders();
             } catch (error) {
-                console.error('Error in scheduler:', error);
+                console.error('Error in reminder scheduler:', error);
+            }
+        });
+
+        cron.schedule('0 * * * *', async () => {
+            try {
+                const moment = require('moment-timezone');
+                for (const [, guild] of this.client.guilds.cache) {
+                    const settings = await this.fileManager.readData(guild, 'settings.json');
+                    const timezone = settings.timezone || 'Asia/Kolkata';
+                    const now = moment.tz(timezone);
+                    if (now.hour() === 21 && now.minute() === 0) {
+                        await this.notificationManager.sendDailySummary(guild);
+                    }
+                }
+            } catch (error) {
+                console.error('Error in daily summary scheduler:', error);
             }
         });
 
         console.log('⏰ Medicine reminder scheduler started');
+        console.log('📊 Daily summary scheduler started (21:00 per-server timezone)');
     }
 
     async deployCommands() {
@@ -157,12 +239,10 @@ class MedGuardianBot {
 
         try {
             console.log('🔄 Started refreshing application (/) commands.');
-
             await rest.put(
                 Routes.applicationCommands(process.env.CLIENT_ID),
-                { body: commands },
+                { body: commands }
             );
-
             console.log('✅ Successfully reloaded application (/) commands.');
         } catch (error) {
             console.error('❌ Error deploying commands:', error);
@@ -175,7 +255,6 @@ class MedGuardianBot {
     }
 }
 
-// Start the bot
 if (require.main === module) {
     const bot = new MedGuardianBot();
     bot.start().catch(console.error);

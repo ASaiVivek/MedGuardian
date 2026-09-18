@@ -1,4 +1,6 @@
 const { AttachmentBuilder } = require('discord.js');
+const moment = require('moment-timezone');
+const { INTAKE_COMPLETE_TYPES, TAKEN_TYPES, MISSED_TYPES } = require('../constants/frequencies');
 
 class FileManager {
     constructor() {
@@ -180,7 +182,8 @@ class FileManager {
                     }
                 },
                 timezone: 'Asia/Kolkata',
-                reminder_advance_minutes: 15
+                reminder_advance_minutes: 15,
+                low_inventory_threshold: 5
             },
             'logs.json': {
                 version: '1.0',
@@ -264,6 +267,43 @@ class FileManager {
         } catch (error) {
             console.error('Error sending to log channel:', error);
         }
+    }
+
+    /**
+     * Get today's intake records for a schedule from activity logs
+     */
+    async getScheduleIntakeToday(guild, scheduleId, timezone = 'Asia/Kolkata') {
+        const logs = await this.readData(guild, 'logs.json');
+        const today = moment.tz(timezone).format('YYYY-MM-DD');
+
+        const entries = (logs.logs || []).filter(log =>
+            log.schedule_id === scheduleId &&
+            log.timestamp?.startsWith(today) &&
+            INTAKE_COMPLETE_TYPES.includes(log.type)
+        );
+
+        if (entries.length === 0) return null;
+
+        const latest = entries[0];
+        if (TAKEN_TYPES.includes(latest.type)) return { status: 'taken', entry: latest };
+        if (MISSED_TYPES.includes(latest.type)) return { status: 'missed', entry: latest };
+        return { status: 'handled', entry: latest };
+    }
+
+    async isScheduleHandledToday(guild, scheduleId, timezone = 'Asia/Kolkata') {
+        const intake = await this.getScheduleIntakeToday(guild, scheduleId, timezone);
+        return intake !== null;
+    }
+
+    async getTodaysIntakeSummary(guild, targetId, timezone = 'Asia/Kolkata') {
+        const logs = await this.readData(guild, 'logs.json');
+        const today = moment.tz(timezone).format('YYYY-MM-DD');
+
+        return (logs.logs || []).filter(log =>
+            log.target_id === targetId &&
+            log.timestamp?.startsWith(today) &&
+            INTAKE_COMPLETE_TYPES.includes(log.type)
+        );
     }
 
     /**

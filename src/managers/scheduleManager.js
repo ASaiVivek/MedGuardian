@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const moment = require('moment-timezone');
+const { formatFrequency } = require('../constants/frequencies');
 
 class ScheduleManager {
     constructor(fileManager) {
@@ -96,8 +97,27 @@ class ScheduleManager {
         const timezone = settings.timezone || 'Asia/Kolkata';
         const advanceMinutes = settings.reminder_advance_minutes || 15;
 
+        if (frequency.startsWith('custom_')) {
+            const reminderTime = frequency.replace('custom_', '');
+            if (!/^\d{2}:\d{2}$/.test(reminderTime)) return null;
+
+            return {
+                id: `sched_${medicine.id}_${frequency}`,
+                medicine_id: medicine.id,
+                medicine_name: medicine.name,
+                target_id: medicine.target_id,
+                frequency,
+                meal_time: 'custom',
+                timing: 'at',
+                reminder_time: reminderTime,
+                timezone,
+                active: true,
+                created_at: new Date().toISOString()
+            };
+        }
+
         let mealTime, timing;
-        
+
         if (frequency.startsWith('before_')) {
             timing = 'before';
             mealTime = frequency.replace('before_', '');
@@ -112,15 +132,12 @@ class ScheduleManager {
             return null;
         }
 
-        // Calculate reminder time
         let reminderTime;
         if (timing === 'before') {
-            // Remind 15 minutes before meal start time
             reminderTime = moment.tz(mealTimes[mealTime].start, 'HH:mm', timezone)
                 .subtract(advanceMinutes, 'minutes')
                 .format('HH:mm');
         } else {
-            // Remind at meal end time (after meal)
             reminderTime = mealTimes[mealTime].end;
         }
 
@@ -129,11 +146,11 @@ class ScheduleManager {
             medicine_id: medicine.id,
             medicine_name: medicine.name,
             target_id: medicine.target_id,
-            frequency: frequency,
+            frequency,
             meal_time: mealTime,
-            timing: timing,
+            timing,
             reminder_time: reminderTime,
-            timezone: timezone,
+            timezone,
             active: true,
             created_at: new Date().toISOString()
         };
@@ -147,16 +164,22 @@ class ScheduleManager {
         const settings = await this.getSettings(guild);
         const timezone = settings.timezone || 'Asia/Kolkata';
         const now = moment.tz(timezone);
-        
-        return schedules.filter(schedule => {
-            if (!schedule.active) return false;
-            
+        const dueSchedules = [];
+
+        for (const schedule of schedules) {
+            if (!schedule.active) continue;
+
             const reminderTime = moment.tz(schedule.reminder_time, 'HH:mm', timezone);
             const timeDiff = Math.abs(now.diff(reminderTime, 'minutes'));
-            
-            // Return schedules that should be reminded within 1 minute window
-            return timeDiff <= 1;
-        });
+            if (timeDiff > 1) continue;
+
+            const handled = await this.fileManager.isScheduleHandledToday(guild, schedule.id, timezone);
+            if (handled) continue;
+
+            dueSchedules.push(schedule);
+        }
+
+        return dueSchedules;
     }
 
     /**
@@ -441,7 +464,7 @@ class ScheduleManager {
             targetSchedules.forEach(schedule => {
                 const status = schedule.active ? '✅' : '❌';
                 description += `${status} **${schedule.medicine_name}**\n`;
-                description += `   ⏰ ${schedule.reminder_time} (${schedule.frequency.replace(/_/g, ' ')})\n`;
+                description += `   ⏰ ${schedule.reminder_time} (${formatFrequency([schedule.frequency])})\n`;
             });
         }
 

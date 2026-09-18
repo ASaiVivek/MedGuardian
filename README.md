@@ -6,15 +6,15 @@ MedGuardian is a Discord bot that helps families and groups track medicine sched
 
 ## ✨ Features
 
-- 🤖 **Discord Bot Integration** - Works entirely within Discord
-- 📁 **File-Based Storage** - Data stored as JSON files in your Discord channels
-- ⚙️ **Configurable Meal Times** - Set custom breakfast, lunch, dinner time ranges
-- 👥 **Role-Based Access** - Tracker (admin) and Target (medicine taker) roles
-- 💊 **Medicine Management** - Add, edit, delete medicines with dosage and frequency
-- ⏰ **Smart Reminders** - Automatic notifications with interactive buttons
-- 📦 **Inventory Tracking** - Low stock alerts and automatic inventory updates
-- 📊 **Activity Logging** - Detailed logs and missed dose notifications
-- 🔒 **Privacy First** - All data stays in your Discord server
+- 🤖 **Discord-native** — reminders, buttons, and logs where your family already chats
+- 📁 **No external database** — JSON files stored in a private Discord channel
+- ⚙️ **Flexible scheduling** — meal-based (before/after breakfast/lunch/dinner) or custom times (`08:00`, `22:00`)
+- 👥 **Tracker & Target roles** — created automatically on setup
+- 💊 **Easy medicine management** — `/add-medicine` with dropdowns, `/edit-medicine` with autocomplete
+- ⏰ **Reliable reminders** — one reminder per dose per day; no duplicate pings after you respond
+- 📦 **Inventory tracking** — auto-decrement on taken doses + low stock alerts
+- 📊 **Daily compliance** — `/my-medicines` shows today's status; nightly summary in #medicine-logs
+- 🔒 **Privacy first** — all data stays in your Discord server
 
 ## 🚀 Quick Start
 
@@ -29,9 +29,9 @@ MedGuardian is a Discord bot that helps families and groups track medicine sched
 3. Generate schedules for all medicines
 
 ### 3. Add Medicines
-1. Use `/medicine-manager` to open the medicine management interface
-2. Click "➕ Add Medicine" and fill the form
-3. Specify target user, dosage, frequency, and inventory
+1. **Recommended:** `/add-medicine` — pick target from a user list, choose schedules from dropdowns
+2. **Or:** `/medicine-manager` — button-based UI with select menus for edit/delete
+3. Schedules regenerate automatically — no manual "regenerate" step needed
 
 ### 4. Start Tracking
 - Targets receive reminders in `#medicine-reminders`
@@ -41,23 +41,30 @@ MedGuardian is a Discord bot that helps families and groups track medicine sched
 ## 📋 Commands
 
 ### For Trackers (Admins)
-- `/setup-medguardian` - Initialize bot for server
-- `/medicine-manager` - Add/edit/delete medicines  
-- `/schedule-settings` - Configure meal times & schedules
-- `/delete-medicine <id>` - Delete specific medicine
+- `/setup-medguardian` — Initialize bot, channels, and roles
+- `/add-medicine` — Add medicine with user picker and schedule dropdowns
+- `/edit-medicine` — Edit medicine with autocomplete search
+- `/medicine-manager` — Button-based management UI
+- `/schedule-settings` — Configure meal times
+- `/update-intake` — Manually correct intake records
+- `/delete-medicine <id>` — Remove a medicine
 
 ### For Targets (Medicine Takers)
-- `/my-medicines` - View your assigned medicines
-- `/help` - Get help and documentation
+- `/my-medicines` — View medicines and today's status (✅ taken, ⏳ pending, ❌ missed)
+- `/help` — Documentation
 
-## 🍽️ Medicine Frequency Options
+## 🍽️ Medicine Schedule Options
 
-- `before_breakfast` - Before breakfast meal
-- `after_breakfast` - After breakfast meal  
-- `before_lunch` - Before lunch meal
-- `after_lunch` - After lunch meal
-- `before_dinner` - Before dinner meal
-- `after_dinner` - After dinner meal
+**Meal-based** (relative to your configured meal times):
+- `before_breakfast`, `after_breakfast`
+- `before_lunch`, `after_lunch`
+- `before_dinner`, `after_dinner`
+
+**Custom times** (fixed clock time, e.g. bedtime vitamins):
+- `08:00` or `custom_08:00` — reminder at 8:00 AM
+- `22:00` — reminder at 10:00 PM
+
+Combine multiple schedules per medicine (e.g. morning vitamin + evening medication).
 
 ## 🏗️ Architecture
 
